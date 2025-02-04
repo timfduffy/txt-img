@@ -225,7 +225,6 @@ const TextToPng = () => {
           <option value="Work Sans">Work Sans</option>
           <option value="Noto Sans">Noto Sans</option>
           <option value="Arial">Arial</option>
-          <option value="Helvetica">Helvetica</option>
         </select>
         
         <label>Text Color:</label>

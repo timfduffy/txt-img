@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Text to Image",
+  "name": "A simple free text to image converter",
   "icons": [
     {
       "src": "favicon.ico",
