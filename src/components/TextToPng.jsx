@@ -194,24 +194,45 @@ const TextToPng = () => {
         if (align === 'justify' && i < lines.length - 1 && line.trim() !== '') {
           // Justify all lines except the last one and empty lines
           const words = line.split(' ');
-          const spaceWidth = (maxWidth - ctx.measureText(line.replace(/ /g, '')).width) / (words.length - 1);
+          
+          // Skip justification for lines with only one word
+          if (words.length <= 1) {
+            const x = borderPixels;
+            ctx.textAlign = 'left';
+            ctx.fillText(line, x, startY + (i * lineHeight), maxWidth);
+            return;
+          }
+          
+          // Calculate space width more precisely
+          const textWidth = ctx.measureText(line.replace(/ /g, '')).width;
+          const spaceWidth = (maxWidth - textWidth) / (words.length - 1);
+          
+          // Start from the border with proper padding
           let currentX = borderPixels;
           
           words.forEach((word, wordIndex) => {
-            // Ensure we don't exceed maxWidth
-            if (currentX + ctx.measureText(word).width <= effectiveHRes - borderPixels) {
-              ctx.fillText(word, currentX, startY + (i * lineHeight));
-              if (wordIndex < words.length - 1) {
-                currentX += ctx.measureText(word).width + spaceWidth;
-              }
+            // Draw the word
+            ctx.fillText(word, currentX, startY + (i * lineHeight));
+            
+            // Move to the next position if not the last word
+            if (wordIndex < words.length - 1) {
+              currentX += ctx.measureText(word).width + spaceWidth;
             }
           });
         } else {
           // For non-justified text or last line
-          const x = align === 'left' ? borderPixels : 
-                   align === 'right' ? effectiveHRes - borderPixels : 
-                   effectiveHRes / 2;
-          ctx.textAlign = align === 'justify' ? 'left' : align;
+          let x;
+          if (align === 'justify') {
+            // Last line of a justified paragraph should be left-aligned
+            x = borderPixels;
+            ctx.textAlign = 'left';
+          } else {
+            x = align === 'left' ? borderPixels : 
+                align === 'right' ? effectiveHRes - borderPixels : 
+                effectiveHRes / 2;
+            ctx.textAlign = align;
+          }
+          
           // Add a small padding to ensure text doesn't touch border
           const padding = fontSize * 0.1;
           ctx.fillText(line, x, startY + (i * lineHeight), maxWidth - padding);
