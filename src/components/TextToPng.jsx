@@ -10,6 +10,7 @@ const TextToPng = () => {
   const [font, setFont] = useState('Inter');
   const [color, setColor] = useState('#ffffff');
   const [bgColor, setBgColor] = useState('#000000');
+  const [paragraphSpacing, setParagraphSpacing] = useState(0.5);
   const canvasRef = useRef(null);
   const [fontsLoaded, setFontsLoaded] = useState(false);
 
@@ -114,11 +115,17 @@ const TextToPng = () => {
         
         // Calculate lines with this font size
         let lines = [];
+        let paragraphBreaks = new Set();
         let maxLineWidth = 0;
+        let lineIndex = 0;
         
         allWords.forEach((words, paraIndex) => {
-          // Add empty line for paragraph breaks, except for first paragraph
-          if (paraIndex > 0) lines.push('');
+          // Add paragraph break marker for paragraph breaks, except for first paragraph
+          if (paraIndex > 0) {
+            lines.push('');
+            paragraphBreaks.add(lineIndex);
+            lineIndex++;
+          }
           
           let currentLine = '';
           for (const word of words) {
@@ -127,6 +134,7 @@ const TextToPng = () => {
             
             if (metrics.width > maxWidth && currentLine !== '') {
               lines.push(currentLine);
+              lineIndex++;
               maxLineWidth = Math.max(maxLineWidth, ctx.measureText(currentLine).width);
               currentLine = word;
             } else {
@@ -135,13 +143,21 @@ const TextToPng = () => {
           }
           if (currentLine) {
             lines.push(currentLine);
+            lineIndex++;
             maxLineWidth = Math.max(maxLineWidth, ctx.measureText(currentLine).width);
           }
         });
 
         // Check if text fits within height
         const lineHeight = mid * 1.2;
-        const totalHeight = lineHeight * lines.length;
+        let totalHeight = 0;
+        lines.forEach((_, i) => {
+          if (paragraphBreaks.has(i)) {
+            totalHeight += lineHeight * paragraphSpacing;
+          } else {
+            totalHeight += lineHeight;
+          }
+        });
         
         if (totalHeight > maxHeight || maxLineWidth > maxWidth) {
           high = mid - 1;
@@ -164,9 +180,16 @@ const TextToPng = () => {
 
       // Calculate final lines
       let lines = [];
+      let paragraphBreaks = new Set();
+      let lineIndex = 0;
+      
       allWords.forEach((words, paraIndex) => {
-        // Add empty line for paragraph breaks, except for first paragraph
-        if (paraIndex > 0) lines.push('');
+        // Add paragraph break marker for paragraph breaks, except for first paragraph
+        if (paraIndex > 0) {
+          lines.push('');
+          paragraphBreaks.add(lineIndex);
+          lineIndex++;
+        }
         
         let currentLine = '';
         for (const word of words) {
@@ -175,6 +198,7 @@ const TextToPng = () => {
           
           if (metrics.width > maxWidth && currentLine !== '') {
             lines.push(currentLine);
+            lineIndex++;
             currentLine = word;
           } else {
             currentLine = testLine;
@@ -182,15 +206,31 @@ const TextToPng = () => {
         }
         if (currentLine) {
           lines.push(currentLine);
+          lineIndex++;
         }
       });
 
       // Draw each line
       const lineHeight = fontSize * 1.2;
-      const totalHeight = lineHeight * lines.length;
-      const startY = (effectiveVRes - totalHeight) / 2 + lineHeight / 2;
+      
+      let totalHeight = 0;
+      lines.forEach((_, i) => {
+        if (paragraphBreaks.has(i)) {
+          totalHeight += lineHeight * paragraphSpacing;
+        } else {
+          totalHeight += lineHeight;
+        }
+      });
+      
+      const startY = (effectiveVRes - totalHeight) / 2;
+      let currentY = startY + lineHeight / 2;
 
       lines.forEach((line, i) => {
+        if (paragraphBreaks.has(i)) {
+          currentY += lineHeight * paragraphSpacing;
+          return;
+        }
+        
         if (align === 'justify' && i < lines.length - 1 && line.trim() !== '') {
           // Justify all lines except the last one and empty lines
           const words = line.split(' ');
@@ -199,7 +239,8 @@ const TextToPng = () => {
           if (words.length <= 1) {
             const x = borderPixels;
             ctx.textAlign = 'left';
-            ctx.fillText(line, x, startY + (i * lineHeight), maxWidth);
+            ctx.fillText(line, x, currentY, maxWidth);
+            currentY += lineHeight;
             return;
           }
           
@@ -212,7 +253,7 @@ const TextToPng = () => {
           
           words.forEach((word, wordIndex) => {
             // Draw the word
-            ctx.fillText(word, currentX, startY + (i * lineHeight));
+            ctx.fillText(word, currentX, currentY);
             
             // Move to the next position if not the last word
             if (wordIndex < words.length - 1) {
@@ -235,14 +276,15 @@ const TextToPng = () => {
           
           // Add a small padding to ensure text doesn't touch border
           const padding = fontSize * 0.1;
-          ctx.fillText(line, x, startY + (i * lineHeight), maxWidth - padding);
+          ctx.fillText(line, x, currentY, maxWidth - padding);
         }
+        currentY += lineHeight;
       });
 
     } catch (err) {
       setError('Error generating preview: ' + err.message);
     }
-  }, [text, hRes, vRes, borderSize, align, font, color, bgColor, fontsLoaded]);
+  }, [text, hRes, vRes, borderSize, align, font, color, bgColor, fontsLoaded, paragraphSpacing]);
 
   const handleDownload = () => {
     const link = document.createElement('a');
@@ -353,6 +395,21 @@ const TextToPng = () => {
         </div>
         
         <div className="controls-row">
+          <div className="control-group">
+            <label>Para Spacing:</label>
+            <div className="border-control">
+              <input
+                type="range"
+                min="0.1"
+                max="1"
+                step="0.1"
+                value={paragraphSpacing}
+                onChange={(e) => setParagraphSpacing(parseFloat(e.target.value))}
+              />
+              <span>{paragraphSpacing}x</span>
+            </div>
+          </div>
+          
           <div className="control-group">
             <label>Text Color:</label>
             <input 
